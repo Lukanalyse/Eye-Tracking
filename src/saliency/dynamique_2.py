@@ -17,9 +17,9 @@ from src.saliency.dynamique_1 import (
 
 @dataclass
 class DynamicStage2Params(DynamicStage1Params):
-    memory_depth: int = 3
-    memory_decay: float = 0.7
-    tau_memory_ms: float = 800.0
+    memory_depth: int = 4
+    memory_decay: float = 0.5
+    tau_memory_ms: float = 200.0
 
 
 def transition_memory_weights(memory_depth: int, memory_decay: float) -> np.ndarray:

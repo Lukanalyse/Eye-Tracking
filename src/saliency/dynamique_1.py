@@ -8,13 +8,13 @@ from src.saliency.static_salience import AOI_COUNT, GRID_SIZE, get_game_metadata
 
 @dataclass
 class DynamicStage1Params:
-    lambda_stat: float = 0.3
-    lambda_dyn: float = 2.0
-    sigma_comp_min: float = 2.0
-    sigma_comp_max: float = 10.0
-    sigma_space: float = 1.5
-    kappa_game: float = 20.0
-    tau_rho_ms: float = 120.0
+    lambda_stat: float = 0.1
+    lambda_dyn: float = 1.0
+    sigma_comp_min: float = 0.01
+    sigma_comp_max: float = 25.0
+    sigma_space: float = 1.6
+    kappa_game: float = 1.0
+    tau_rho_ms: float = 400.0
     beta: float | None = None
 
 
