@@ -10,6 +10,8 @@ import streamlit as st
 
 # import pages
 from src.pages.page_1 import show_page_1
+from src.pages.page_4 import show_page_4
+from src.pages.page_5 import show_page_5
 
 st.set_page_config(
     page_title="Eye Tracking BCG",
@@ -28,6 +30,8 @@ page = st.sidebar.selectbox(
     "Navigation",
     [
         "Carte de saillance théorique",
+        "Modelisation dynamique (Stage 1)",
+"Modelisation dynamique (Stage 2 - Memoire locale)",
     ]
 )
 
@@ -38,3 +42,7 @@ page = st.sidebar.selectbox(
 
 if page == "Carte de saillance théorique":
     show_page_1()
+elif page == "Modelisation dynamique (Stage 1)":
+    show_page_4()
+elif page == "Modelisation dynamique (Stage 2 - Memoire locale)":
+    show_page_5()
