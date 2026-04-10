@@ -1,0 +1,11 @@
+- lambda_stat = 0.30
+- lambda_dyn = 2.00
+- sigma_comp_min = 1.00
+- sigma_comp_max = 3.00
+- sigma_space = 1.8
+- kappa_game = 30.00
+- tau_rho_ms = 350.00
+- memory_depth = 3
+- memory_decay = 0.70
+- tau_memory_ms : 1500 ms
+

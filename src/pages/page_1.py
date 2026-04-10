@@ -41,16 +41,38 @@ def is_supported_game_sheet(sheet_name: str) -> bool:
         return False
 
 
-def normalize_fixations(df: pd.DataFrame) -> pd.DataFrame:
-    """Standardize fixation table to AOI/Time columns and valid ranges."""
-    data = df.iloc[:, :2].copy()
+def normalize_fixations(raw_df: pd.DataFrame) -> pd.DataFrame:
+    data = raw_df.copy()
+
+    # Feuille vide ou sans colonnes
+    if raw_df is None or raw_df.empty or raw_df.shape[1] == 0:
+        return pd.DataFrame(columns=["AOI", "Time"])
+
+    # Si moins de 2 colonnes, on ignore proprement
+    if data.shape[1] < 2:
+        return pd.DataFrame(columns=["AOI", "Time"])
+
+    # On garde uniquement les 2 premières colonnes
+    data = data.iloc[:, :2].copy()
     data.columns = ["AOI", "Time"]
+
+    data = data.dropna(subset=["AOI", "Time"]).reset_index(drop=True)
+
+    if data.empty:
+        return pd.DataFrame(columns=["AOI", "Time"])
+
     data["AOI"] = pd.to_numeric(data["AOI"], errors="coerce")
     data["Time"] = pd.to_numeric(data["Time"], errors="coerce")
-    data = data.dropna(subset=["AOI", "Time"])
+
+    data = data.dropna(subset=["AOI", "Time"]).reset_index(drop=True)
+
+    if data.empty:
+        return pd.DataFrame(columns=["AOI", "Time"])
+
     data["AOI"] = data["AOI"].astype(int)
-    data = data[(data["AOI"] >= 1) & (data["AOI"] <= AOI_COUNT) & (data["Time"] >= 0)]
-    return data.reset_index(drop=True)
+    data["Time"] = data["Time"].astype(float)
+
+    return data
 
 
 @st.cache_data(show_spinner=False)

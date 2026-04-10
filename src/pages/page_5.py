@@ -250,8 +250,8 @@ def show_page_5() -> None:
         st.markdown("**Paramètres du modèle**")
         lambda_stat = st.slider("lambda_stat", 0.0, 3.0, 0.3, 0.05, key="page5_lambda_stat")
         lambda_dyn = st.slider("lambda_dyn", 0.0, 5.0, 2.0, 0.05, key="page5_lambda_dyn")
-        sigma_comp_min = st.slider("sigma_comp_min", 0.2, 15.0, 2.0, 0.1, key="page5_sigma_comp_min")
-        sigma_comp_max = st.slider("sigma_comp_max", 0.2, 25.0, 10.0, 0.1, key="page5_sigma_comp_max")
+        sigma_comp_inf = st.slider("sigma_comp_inf", 0.2, 25.0, 12.0, 0.1, key="page5_sigma_comp_inf")
+        sigma_comp_amp = st.slider("sigma_comp_amp", 0.0, 25.0, 20.0, 0.1, key="page5_sigma_comp_amp")
         sigma_space = st.slider("sigma_space", 0.1, 8.0, 1.5, 0.1, key="page5_sigma_space")
         kappa_game = st.slider("kappa_game", 1.0, 100.0, 20.0, 1.0, key="page5_kappa_game")
         tau_rho_ms = st.slider("tau_rho_ms", 10.0, 500.0, 120.0, 5.0, key="page5_tau_rho_ms")
@@ -310,8 +310,8 @@ def show_page_5() -> None:
     params = DynamicStage2Params(
         lambda_stat=lambda_stat,
         lambda_dyn=lambda_dyn,
-        sigma_comp_min=sigma_comp_min,
-        sigma_comp_max=sigma_comp_max,
+        sigma_comp_inf=sigma_comp_inf,
+        sigma_comp_amp=sigma_comp_amp,
         sigma_space=sigma_space,
         kappa_game=kappa_game,
         tau_rho_ms=tau_rho_ms,

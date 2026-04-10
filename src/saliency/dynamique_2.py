@@ -117,8 +117,8 @@ def current_br_space_map(
     game: int | str,
     x_t: float,
     fixation_index: int,
-    sigma_comp_min: float,
-    sigma_comp_max: float,
+    sigma_comp_inf: float,
+    sigma_comp_amp: float,
     kappa_game: float,
     sigma_space: float,
 ) -> dict[str, np.ndarray | float]:
@@ -134,8 +134,8 @@ def current_br_space_map(
     target = strategic_target(game, x_t)
     sigma_comp_t = sigma_comp_over_game(
         fixation_index=fixation_index,
-        sigma_comp_min=sigma_comp_min,
-        sigma_comp_max=sigma_comp_max,
+        sigma_comp_inf=sigma_comp_inf,
+        sigma_comp_amp=sigma_comp_amp,
         kappa_game=kappa_game,
     )
     br_comp = computational_br_map(y=y, target=target, sigma_comp=sigma_comp_t)
@@ -175,8 +175,8 @@ def dynamic_stage2_step(
         game=game,
         x_t=x_t,
         fixation_index=fixation_index,
-        sigma_comp_min=params.sigma_comp_min,
-        sigma_comp_max=params.sigma_comp_max,
+        sigma_comp_inf=params.sigma_comp_inf,
+        sigma_comp_amp=params.sigma_comp_amp,
         kappa_game=params.kappa_game,
         sigma_space=params.sigma_space,
     )
