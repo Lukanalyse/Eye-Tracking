@@ -39,7 +39,7 @@ def _plot_heatmap(
     y_coords: np.ndarray | None = None,
     current_point: tuple[float, float] | None = None,
     previous_point: tuple[float, float] | None = None,
-    cmap: str = "viridis",
+    cmap: str = "magma",
 ) -> plt.Figure:
     matrix = aoi_to_matrix(_minmax_for_display(values))
 
@@ -53,7 +53,7 @@ def _plot_heatmap(
         ax.scatter(
             previous_point[0],
             previous_point[1],
-            color="orange",
+            color="cyan",
             s=65,
             edgecolor="black",
             linewidth=0.5,
@@ -65,7 +65,7 @@ def _plot_heatmap(
         ax.scatter(
             current_point[0],
             current_point[1],
-            color="red",
+            color="lightgreen",
             s=70,
             edgecolor="black",
             linewidth=0.5,
@@ -409,6 +409,7 @@ def show_stage1_page() -> None:
                 y_coords=y_coords,
                 current_point=current_point,
                 previous_point=previous_point,
+                cmap="magma",
             )
             st.pyplot(fig)
             plt.close(fig)
@@ -438,6 +439,7 @@ def show_stage1_page() -> None:
                     y_coords=y_coords,
                     current_point=current_point,
                     previous_point=previous_point,
+                    cmap="magma",
                 )
                 st.pyplot(fig)
                 plt.close(fig)
