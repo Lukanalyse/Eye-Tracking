@@ -10,3 +10,6 @@ __pycache__/
 
 resultats_stage_0/
 resultats_stage_1/
+
+data/raw/
+
