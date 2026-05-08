@@ -71,8 +71,8 @@ def _plot_heatmap(
     ax.set_xticklabels(np.arange(1, GRID_SIZE + 1))
     ax.set_yticks(np.arange(GRID_SIZE) + 0.5)
     ax.set_yticklabels(np.arange(0, GRID_SIZE))
-    ax.set_xlabel("Colonnes")
-    ax.set_ylabel("Lignes")
+    ax.set_xlabel("Columns")
+    ax.set_ylabel("Rows")
     ax.set_title(title)
 
     return fig
@@ -95,7 +95,9 @@ def _init_page0_state(selection_key: str) -> None:
 def show_page_0() -> None:
     st.header("Stage 0 - Salience statique + BR computationnelle")
     st.caption(
-        "Modèle minimal : S_t(y) = λ0 S_stat(y) + λ1 BR_comp_t(y), avec λ0 + λ1 = 1."
+        "Modèle minimal : S_t(y) = λ0 S_stat(y) + λ1 BR_comp_t(y), avec λ0 + λ1 = 1. "
+        "Le score BR est maintenant calculé à partir de la distance entre la transition observée "
+        "et la cible stratégique T_g(x_t)."
     )
 
     project_root = Path(__file__).resolve().parents[2]
@@ -133,15 +135,10 @@ def show_page_0() -> None:
         st.markdown("**Paramètres Stage 0**")
         lambda_stat = st.slider("lambda_stat", 0.0, 1.0, 0.5, 0.01, key="page0_lambda_stat")
         lambda_br = st.slider("lambda_br", 0.0, 1.0, 0.5, 0.01, key="page0_lambda_br")
-        sigma_comp = st.slider("sigma_comp", 0.2, 25.0, 6.0, 0.1, key="page0_sigma_comp")
+        sigma_comp = st.slider("sigma_comp", 0.2, 25.0, 8.0, 0.1, key="page0_sigma_comp")
 
         st.markdown("**Paramètres Score 0**")
-        sigma_score = st.slider("sigma_score", 0.5, 20.0, 6.0, 0.1, key="page0_sigma_score")
-        use_relative_overlap = st.checkbox(
-            "Utiliser le recouvrement relatif de zone",
-            value=True,
-            key="page0_use_relative_overlap",
-        )
+        sigma_score = st.slider("sigma_score", 0.5, 10.0, 2.0, 0.1, key="page0_sigma_score")
 
         st.markdown("**Lecture dynamique**")
         speed = st.slider("Vitesse de lecture", 0.05, 5.0, 0.5, 0.05, key="page0_speed")
@@ -200,7 +197,6 @@ def show_page_0() -> None:
     )
     score0_params = Score0Params(
         sigma_score=sigma_score,
-        use_relative_overlap=use_relative_overlap,
     )
 
     step = stage_0_step(
@@ -227,7 +223,8 @@ def show_page_0() -> None:
         st.markdown(
             f"**AOI actuelle :** `{current_aoi}` · "
             f"**T_g(x_t) :** `{float(step['T_g']):.3f}` · "
-            f"**sigma_comp :** `{float(step['sigma_comp']):.3f}`"
+            f"**sigma_comp :** `{float(step['sigma_comp']):.3f}` · "
+            f"**sigma_score :** `{float(score0_params.sigma_score):.3f}`"
         )
         st.markdown(
             f"**lambda_stat normalisé :** `{float(step['lambda_stat']):.3f}` · "
@@ -263,7 +260,7 @@ def show_page_0() -> None:
         with tab2:
             fig = _plot_heatmap(
                 np.asarray(step["BR_comp_t"], dtype=float),
-                title="BR computationnelle",
+                title="BR computational",
                 x_coords=x_coords,
                 y_coords=y_coords,
                 current_point=current_point,
@@ -307,6 +304,13 @@ def show_page_0() -> None:
             col3.metric("Médiane", f"{int(summary['median'])}")
             col4.metric("P(N≥1)", f"{100 * float(summary['prob_at_least_one']):.1f}%")
 
+            col5, col6, col7 = st.columns(3)
+            col5.metric("Var[N_BR]", f"{float(summary['variance']):.3f}")
+            col6.metric("Mean p_t", f"{float(summary['mean_p_t']):.3f}")
+            col7.metric("Mean dist. BR", f"{float(summary['mean_distance_to_br']):.3f}")
+
+            st.metric("Mean score entropy", f"{float(summary['mean_score_entropy']):.3f}")
+
             st.markdown("**Distribution du nombre de BR**")
             fig_dist, ax_dist = plt.subplots(figsize=(7.0, 3.5))
             ax_dist.bar(np.arange(len(dist)), dist)
@@ -316,8 +320,21 @@ def show_page_0() -> None:
             st.pyplot(fig_dist)
             plt.close(fig_dist)
 
-            st.markdown("**Probabilités locales par transition**")
-            st.dataframe(br_df, use_container_width=True, height=260)
+            st.markdown("**Transitions locales**")
+            display_cols = [
+                c for c in [
+                    "t",
+                    "x_t",
+                    "x_t_plus_1",
+                    "T_g",
+                    "distance_to_br",
+                    "p_t",
+                    "q_next_exact",
+                    "q_max",
+                    "score_entropy",
+                ] if c in br_df.columns
+            ]
+            st.dataframe(br_df[display_cols], use_container_width=True, height=260)
 
     if st.session_state.page0_is_playing:
         display_step_s = 0.05

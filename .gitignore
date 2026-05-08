@@ -1,3 +1,12 @@
-# Ignore generated and raw datasets
-data/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
 
+.idea/
+
+.env
+.streamlit/secrets.toml
+
+resultats_stage_0/
+resultats_stage_1/

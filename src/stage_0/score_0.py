@@ -10,8 +10,8 @@ from src.stage_0.stage_0 import Stage0Params, stage_0_step
 
 @dataclass(frozen=True)
 class Score0Params:
-    sigma_score: float = 6.0
-    use_relative_overlap: bool = True
+    sigma_score: float = 4.75
+    use_relative_overlap: bool = False
 
 
 def normalize_probability(values: np.ndarray) -> np.ndarray:
@@ -22,39 +22,90 @@ def normalize_probability(values: np.ndarray) -> np.ndarray:
     return arr / total
 
 
+def normalized_shannon_entropy(probabilities: np.ndarray) -> float:
+    """
+    Shannon entropy normalized to [0, 1].
+
+    0 -> very concentrated distribution
+    1 -> perfectly uniform distribution
+    """
+    q = np.asarray(probabilities, dtype=float)
+    q = np.clip(q, 1e-12, 1.0)
+    entropy = -float(np.sum(q * np.log(q)))
+    max_entropy = float(np.log(len(q)))
+    if max_entropy <= 0:
+        return 0.0
+    return float(entropy / max_entropy)
+
+
 def br_region_weights(y: np.ndarray, target: float, sigma_score: float) -> np.ndarray:
     """
-    Gaussian BR zone centered on the strategic target.
-    This defines a soft region rather than a single exact AOI.
+    Gaussian BR region centered on the strategic target.
+    Used only for diagnostics / entropy of the BR scoring region.
     """
     sigma_safe = max(float(sigma_score), 1e-9)
     raw = np.exp(-((y - target) ** 2) / (2.0 * sigma_safe**2))
     return normalize_probability(raw)
 
 
-def relative_overlap_score(q_t: np.ndarray, w_t: np.ndarray) -> float:
+def relative_overlap_score(q: np.ndarray, w: np.ndarray) -> float:
     """
-    Relative overlap between the salience probability map q_t and the BR zone w_t.
+    Relative overlap between two probability distributions on the same AOI support.
 
-    Raw overlap:
-        <q_t, w_t> = sum_y q_t(y) w_t(y)
-
-    We normalize by the maximal self-overlap of w_t:
-        sum_y w_t(y)^2
-
-    so that if q_t == w_t, the score is 1.
+    Returns a score in [0, 1]:
+    - 1 if the two distributions are identical
+    - 0 if they do not overlap at all
     """
-    q = np.asarray(q_t, dtype=float)
-    w = np.asarray(w_t, dtype=float)
+    q = np.asarray(q, dtype=float)
+    w = np.asarray(w, dtype=float)
 
-    numerator = float(np.sum(q * w))
-    denominator = float(np.sum(w * w))
+    q = normalize_probability(q)
+    w = normalize_probability(w)
 
-    if denominator <= 0:
-        return 0.0
+    return float(np.clip(np.sum(np.minimum(q, w)), 0.0, 1.0))
 
-    score = numerator / denominator
-    return float(np.clip(score, 0.0, 1.0))
+
+def br_distance_probability(
+    observed_aoi: float,
+    target: float,
+    sigma_score: float,
+) -> float:
+    """
+    Local BR probability based only on the distance between the observed
+    next AOI and the BR target.
+
+    p_t = exp( - (x_{t+1} - T_g(x_t))^2 / (2 sigma_score^2) )
+
+    Properties:
+    - exact BR -> p_t = 1
+    - close to BR -> high p_t
+    - far from BR -> low p_t
+    """
+    sigma_safe = max(float(sigma_score), 1e-9)
+    distance = float(observed_aoi) - float(target)
+    p_t = np.exp(-(distance**2) / (2.0 * sigma_safe**2))
+    return float(np.clip(p_t, 0.0, 1.0))
+
+
+def validate_fixations(fixations: pd.DataFrame) -> pd.DataFrame:
+    required_cols = {"AOI", "Time"}
+    missing = required_cols - set(fixations.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    clean = fixations.copy()
+    clean = clean.dropna(subset=["AOI", "Time"]).reset_index(drop=True)
+
+    clean["AOI"] = pd.to_numeric(clean["AOI"], errors="coerce")
+    clean["Time"] = pd.to_numeric(clean["Time"], errors="coerce")
+    clean = clean.dropna(subset=["AOI", "Time"]).reset_index(drop=True)
+
+    clean["AOI"] = clean["AOI"].astype(int)
+    clean["Time"] = clean["Time"].astype(float)
+
+    clean = clean[(clean["AOI"] >= 1) & (clean["AOI"] <= AOI_COUNT)]
+    clean = clean[clean["Time"] > 0].reset_index(drop=True)
+    return clean
 
 
 def compute_transition_br_probabilities(
@@ -66,22 +117,15 @@ def compute_transition_br_probabilities(
     """
     Compute one BR probability per transition.
 
-    Stage 0 logic:
-    - At fixation t, build q_t from x_t.
-    - Define a BR zone around T_g(x_t).
-    - Score how aligned q_t is with that BR zone.
+    New simple Stage 0 scoring logic:
+    - At fixation t, compute the BR target T_g(x_t)
+    - Observe next fixation x_{t+1}
+    - Measure the distance to the BR target
+    - Convert this distance into a soft BR probability
 
-    This is intentionally soft:
-    if BR is around 56 and the salience is high around 52, 53, 54, 55, 56,
-    the transition still gets a high BR probability.
+    This creates one piece of evidence per transition.
     """
-    required_cols = {"AOI", "Time"}
-    missing = required_cols - set(fixations.columns)
-    if missing:
-        raise ValueError(f"Missing required columns: {missing}")
-
-    clean = fixations.copy()
-    clean = clean.dropna(subset=["AOI", "Time"]).reset_index(drop=True)
+    clean = validate_fixations(fixations)
 
     if len(clean) < 2:
         return pd.DataFrame(
@@ -90,14 +134,13 @@ def compute_transition_br_probabilities(
                 "x_t",
                 "x_t_plus_1",
                 "T_g",
+                "distance_to_br",
                 "p_t",
                 "q_next_exact",
-                "q_zone_overlap",
                 "q_max",
+                "score_entropy",
             ]
         )
-
-    clean["AOI"] = clean["AOI"].astype(int)
 
     y = np.arange(1, AOI_COUNT + 1, dtype=float)
     rows = []
@@ -115,20 +158,22 @@ def compute_transition_br_probabilities(
         q_t = np.asarray(step["q_t"], dtype=float)
         target = float(step["T_g"])
 
-        w_t = br_region_weights(
-            y=y,
+        distance_to_br = float(abs(float(x_t_plus_1) - target))
+        p_t = br_distance_probability(
+            observed_aoi=float(x_t_plus_1),
             target=target,
             sigma_score=score0_params.sigma_score,
         )
 
         q_next_exact = float(np.clip(q_t[x_t_plus_1 - 1], 0.0, 1.0))
-        q_zone_overlap = relative_overlap_score(q_t, w_t)
         q_max = float(np.max(q_t))
 
-        if score0_params.use_relative_overlap:
-            p_t = q_zone_overlap
-        else:
-            p_t = q_next_exact
+        w_t = br_region_weights(
+            y=y,
+            target=target,
+            sigma_score=score0_params.sigma_score,
+        )
+        score_entropy = normalized_shannon_entropy(w_t)
 
         rows.append(
             {
@@ -136,10 +181,11 @@ def compute_transition_br_probabilities(
                 "x_t": x_t,
                 "x_t_plus_1": x_t_plus_1,
                 "T_g": target,
-                "p_t": float(np.clip(p_t, 0.0, 1.0)),
+                "distance_to_br": distance_to_br,
+                "p_t": p_t,
                 "q_next_exact": q_next_exact,
-                "q_zone_overlap": q_zone_overlap,
                 "q_max": q_max,
+                "score_entropy": score_entropy,
             }
         )
 
@@ -226,6 +272,13 @@ def stage0_br_count_distribution(
     if transition_df.empty:
         dist = np.array([1.0], dtype=float)
         summary = summarize_br_distribution(dist)
+        summary.update(
+            {
+                "mean_p_t": np.nan,
+                "mean_score_entropy": np.nan,
+                "mean_distance_to_br": np.nan,
+            }
+        )
         return {
             "transition_df": transition_df,
             "distribution": dist,
@@ -235,6 +288,14 @@ def stage0_br_count_distribution(
     probs = transition_df["p_t"].to_numpy(dtype=float)
     dist = poisson_binomial_distribution(probs)
     summary = summarize_br_distribution(dist)
+
+    summary.update(
+        {
+            "mean_p_t": float(transition_df["p_t"].mean()),
+            "mean_score_entropy": float(transition_df["score_entropy"].mean()),
+            "mean_distance_to_br": float(transition_df["distance_to_br"].mean()),
+        }
+    )
 
     return {
         "transition_df": transition_df,
